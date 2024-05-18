@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import sys
-from os import getenv
 
 from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
@@ -9,8 +8,8 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
-# Bot token can be obtained via https://t.me/BotFather
-TOKEN = "6877052402:AAGXgWf5LwLlwg4qsvwU9bF-2kFPifwR1rA"
+from config import TOKEN
+from handlers.payment import payment_router
 
 # All handlers should be attached to the Router (or Dispatcher)
 dp = Dispatcher()
@@ -49,6 +48,8 @@ async def echo_handler(message: Message) -> None:
 async def main() -> None:
     # Initialize Bot instance with default bot properties which will be passed to all API calls
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    # Зарегистрируем роутер
+    dp.include_router(payment_router)
     # And the run events dispatching
     await dp.start_polling(bot)
 
