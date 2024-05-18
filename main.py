@@ -1,55 +1,53 @@
 import asyncio
 import logging
 import sys
-from os import getenv
 
 from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
+from aiogram.fsm.storage.memory import MemoryStorage
 
-# Bot token can be obtained via https://t.me/BotFather
-TOKEN = "6877052402:AAGXgWf5LwLlwg4qsvwU9bF-2kFPifwR1rA"
+from config import TOKEN, TECH_SUPPORT
+from database import db
+from keyboard import reply as kb
 
-# All handlers should be attached to the Router (or Dispatcher)
-dp = Dispatcher()
+from handlers.payments import payments_router
+from handlers.flights import flights_router
+from handlers.order import order_router
+
+
+dp = Dispatcher(storage=MemoryStorage())
 
 
 @dp.message(CommandStart())
-async def command_start_handler(msg: Message, bot: Bot) -> None:
-    """
-    This handler receives messages with `/start` command
-    """
-    # Most event objects have aliases for API methods that can be called in events' context
-    # For example if you want to answer to incoming message you can use `message.answer(...)` alias
-    # and the target chat will be passed to :ref:`aiogram.methods.send_message.SendMessage`
-    # method automatically or call API method directly via
-    # Bot instance: `bot.send_message(chat_id=message.chat.id, ...)`
-    await msg.reply(f"Hello, {html.bold(msg.from_user.full_name)}!")
-    dice = await bot.send_dice(chat_id=msg.chat.id)
-    await msg.answer(f"{dice.dice.emoji} {dice.dice.value}")
+async def command_start_handler(message: Message, bot: Bot):
+    await message.reply(f"Приветствую вас!\nВы можете у нас купить билеты на самолет\nДля помощи введите команду /help", reply_markup=kb.menu_keyboard())
 
-
-@dp.message(F.text == 'hello')
-async def echo_handler(message: Message) -> None:
-    """
-    Handler will forward receive a message back to the sender
-
-    By default, message handler will handle all message types (like a text, photo, sticker etc.)
-    """
-    try:
-        # Send a copy of the received message
-        await message.send_copy(chat_id=message.chat.id)
-    except TypeError:
-        # But not all the types is supported to be copied so need to handle it
-        await message.answer("Nice try!")
+@dp.message(Command(commands="help"))
+async def echo_handler(message: Message):
+    await message.answer(
+            (
+            "Команды бота:\n"
+            "/start - Начать диалог с ботом\n"
+            "/flights или /tickets - Посмотреть ваши билеты\n"
+            "/order или /new -  купить новый билет\n"
+            "/pay или /buy - оплатить билет, проверить задолженность\n\n"
+            "Техническая поддержка:\n"
+            f'{html.link("Служба поддержки (тык)", TECH_SUPPORT)}'
+            ), reply_markup=kb.menu_keyboard()
+        )
 
 
 async def main() -> None:
-    # Initialize Bot instance with default bot properties which will be passed to all API calls
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    # And the run events dispatching
+
+    dp.include_router(payments_router)
+    dp.include_router(order_router)
+    dp.include_router(flights_router)
+
+    db.create_tables()
     await dp.start_polling(bot)
 
 
